@@ -1,0 +1,182 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Coin Toss Betting Game</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f0f0f0;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: #333;
+      }
+
+      .container {
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+        max-width: 600px;
+        text-align: center;
+      }
+
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+
+      #timer {
+        font-size: 3rem;
+        color: #ff5722;
+        margin-bottom: 20px;
+      }
+
+      #result {
+        font-size: 1.8rem;
+        color: #4caf50;
+        margin-bottom: 30px;
+      }
+
+      .bet-btn {
+        padding: 15px 30px;
+        font-size: 1.2rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        margin: 10px;
+        transition: background-color 0.3s ease;
+      }
+
+      .bet-btn:hover {
+        background-color: #333333;
+        color: white;
+      }
+
+      #bet-heads {
+        background-color: #2196f3;
+        color: white;
+      }
+
+      #bet-tails {
+        background-color: #ff5722;
+        color: white;
+      }
+
+      .bet-btn:disabled {
+        background-color: #d3d3d3;
+        cursor: not-allowed;
+      }
+
+      #bet-history {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #eee;
+        max-height: 300px;
+        overflow-y: auto;
+        text-align: left;
+      }
+
+      .history-entry {
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .history-entry:last-child {
+        border-bottom: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Coin Toss Betting Game</h1>
+      <div id="timer">Waiting for the next round...</div>
+      <div id="result"></div>
+      <button class="bet-btn" id="bet-heads">Bet on Heads</button>
+      <button class="bet-btn" id="bet-tails">Bet on Tails</button>
+      <div id="bet-history">
+        <h3>Bet History:</h3>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+
+      const timerEl = document.getElementById("timer");
+      const resultEl = document.getElementById("result");
+      const betHeadsBtn = document.getElementById("bet-heads");
+      const betTailsBtn = document.getElementById("bet-tails");
+      const betHistoryEl = document.getElementById("bet-history");
+
+      let currentRound = 0;
+
+      // Handle timer updates
+      socket.on("timer", (time) => {
+        timerEl.textContent = `Time remaining: ${time}s`;
+      });
+
+      // Handle new round start
+      socket.on("new round", (data) => {
+        currentRound = data.roundNumber;
+        resultEl.textContent = "Place your bets!";
+        timerEl.textContent = "Betting is open!";
+        betHeadsBtn.disabled = false;
+        betTailsBtn.disabled = false;
+      });
+
+      // Handle betting closed event
+      socket.on("betting closed", () => {
+        timerEl.textContent = "Betting is closed.";
+        betHeadsBtn.disabled = true;
+        betTailsBtn.disabled = true;
+      });
+
+      // Handle round result
+      socket.on("round result", (result) => {
+        resultEl.textContent = `Result: ${result.toUpperCase()}`;
+      });
+
+      // Handle bet placement
+      betHeadsBtn.addEventListener("click", () => {
+        socket.emit("place bet", { choice: "heads", amount: 100 });
+      });
+
+      betTailsBtn.addEventListener("click", () => {
+        socket.emit("place bet", { choice: "tails", amount: 100 });
+      });
+
+      // Display bet history
+      function updateBetHistory(history) {
+        betHistoryEl.innerHTML = "<h3>Bet History:</h3>";
+        history.forEach((entry) => {
+          const entryEl = document.createElement("div");
+          entryEl.classList.add("history-entry");
+          entryEl.textContent = `User ${
+            entry.user
+          } bet on ${entry.bet.toUpperCase()} | Result: ${entry.result.toUpperCase()} | Payout: ${
+            entry.payout
+          }`;
+          betHistoryEl.appendChild(entryEl);
+        });
+      }
+
+      // Update history when receiving the new data from the server
+      socket.on("update history", (history) => {
+        updateBetHistory(history);
+      });
+
+      // Load the game state when the page loads
+      socket.on("game state", (state) => {
+        updateBetHistory(state.history);
+      });
+    </script>
+  </body>
+</html>
